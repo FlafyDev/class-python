@@ -2,6 +2,7 @@ from pathlib import Path
 import ascii_art
 from time import sleep
 import os
+from typing import Tuple
 
 # Required functions
 def check_win(secret_word: str, old_letters_guessed: list[str]) -> bool:
@@ -17,55 +18,54 @@ def show_hidden_word(secret_word: str, old_letters_guessed: list[str]) -> str:
 def check_valid_input(letter_guessed: str, old_letters_guessed: list[str]) -> bool:
     return len(letter_guessed) == 1 and letter_guessed.isalpha and letter_guessed not in old_letters_guessed
 
-def try_update_letter_guessed(letter_guessed: str, old_letters_guessed: list[str]) -> bool:
+def try_update_letter_guessed(letter_guessed: str, old_letters_guessed: list[str]) -> Tuple[bool, str]:
     is_valid = check_valid_input(letter_guessed, old_letters_guessed)
 
     if is_valid:
         old_letters_guessed.append(letter_guessed)
     else:
-        print(f"Bad input: {letter_guessed}\nGuessed letters: {' -> '.join(old_letters_guessed)}")
+        return is_valid, f"Bad input: {letter_guessed}\nGuessed letters: {' -> '.join(old_letters_guessed)}"
 
-    return is_valid
-
-def choose_word(file_path: str, index: int) -> str:
-    with open(file_path, "r") as f:
-        return f.read().split(" ")[index]
+    return is_valid, ""
 
 # My own functions
-def file_chooser() -> str | None:
-    return input("Enter a file path containing the words: ")
-
 def clear() -> None:
     os.system('clear')
 
-def render(secret_word: str, old_letters_guessed: list[str], tries: int) -> None:
+def render_hangman(secret_word: str, old_letters_guessed: list[str], tries: int, max_tries: int) -> None:
     clear()
     print(ascii_art.stages[tries])
     print(show_hidden_word(secret_word, old_letters_guessed))
+    print(f"Tries left: {max_tries-tries}")
 
-def main() -> None:
+def game_loop() -> None:
     MAX_TRIES = 6
-
+    clear()
+    print(ascii_art.opening)
 
     while True:
-        file_path = file_chooser()
-
+        file_path = input("Enter a file path containing the words: ")
+    
         if file_path is not None and Path(file_path).exists():
             break
-
+    
         print("Unknown file.")
-
+    
+    with open(file_path, "r") as f:
+        words = f.read().split(" ")
+    
     while True:
         word_index = input("Enter the location of a word: ")
-
+    
         try:
             word_index = int(word_index)
+            secret_word = words[word_index].strip()
             break
-        except:
+        except IndexError:
+            print("Overflow error.")
+        except ValueError:
             print("Not a number.")
 
-    
-    secret_word = choose_word(file_path, word_index)
     old_letters_guessed = []
     num_of_tries = 0
 
@@ -74,36 +74,43 @@ def main() -> None:
     sleep(2)
     clear()
 
-    render(secret_word, old_letters_guessed, num_of_tries)
+    render = lambda: render_hangman(secret_word, old_letters_guessed, num_of_tries, MAX_TRIES)
+    render()
+
     while num_of_tries < MAX_TRIES:
         while True:
             letter = input("Guess a letter: ").lower()
-            if try_update_letter_guessed(letter, old_letters_guessed):
+            is_valid, error_msg = try_update_letter_guessed(letter, old_letters_guessed)
+            if is_valid:
                 break
             else:
-                print()
+                render()
+                print(error_msg)
 
         if check_win(secret_word, old_letters_guessed):
-            render(secret_word, old_letters_guessed, num_of_tries)
+            render()
             print("You won!")
+            print(f"The word was: {secret_word}")
             return
 
-        is_correct = letter not in secret_word
+        is_correct = letter in secret_word
 
         if is_correct:
-            num_of_tries += 1
-
-        render(secret_word, old_letters_guessed, num_of_tries)
-
-        if is_correct:
-            print(f"The letter {letter} is not in the word :(")
-        else:
+            render()
             print(f"The letter {letter} is in the word :)")
+        else:
+            num_of_tries += 1
+            render()
+            print(f"The letter {letter} is not in the word :(")
 
     print("You lost...")
 
+def main() -> None:
+    while True:
+        game_loop()
 
-        
+        if (input("Play again? (Y/n): ") == "n"):
+            break
 
 if __name__ == "__main__":
     main()
