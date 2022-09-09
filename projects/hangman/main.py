@@ -104,6 +104,7 @@ def game_loop() -> None:
             print(f"The letter {letter} is not in the word :(")
 
     print("You lost...")
+    print(f"The word was: {secret_word}")
 
 def main() -> None:
     while True:
